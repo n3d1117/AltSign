@@ -47,6 +47,10 @@ NS_SWIFT_NAME(registerDevice(name:identifier:team:session:completionHandler:));
                     completionHandler:(void (^)(ALTCertificate *_Nullable certificate, NSError *_Nullable error))completionHandler
 NS_SWIFT_NAME(addCertificate(machineName:to:session:completionHandler:));
 
+- (void)addCertificateWithEncodedCSR:(NSString *)encodedCSR machineNamePrefix:(NSString *)prefix toTeam:(ALTTeam *)team session:(ALTAppleAPISession *)session
+                    completionHandler:(void (^)(ALTCertificate * _Nullable certificate, NSError *_Nullable error))completionHandler
+NS_SWIFT_NAME(addCertificate(encodedCSR:prefix:to:session:completionHandler:));
+
 - (void)revokeCertificate:(ALTCertificate *)certificate forTeam:(ALTTeam *)team session:(ALTAppleAPISession *)session
         completionHandler:(void (^)(BOOL success, NSError *_Nullable error))completionHandler
 NS_SWIFT_NAME(revoke(_:for:session:completionHandler:));

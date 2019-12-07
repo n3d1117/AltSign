@@ -231,10 +231,12 @@ NS_ASSUME_NONNULL_END
     
     NSURL *URL = [NSURL URLWithString:@"ios/submitDevelopmentCSR.action" relativeToURL:self.baseURL];
     NSString *encodedCSR = [[NSString alloc] initWithData:request.data encoding:NSUTF8StringEncoding];
+    NSString *uuid = [[NSUUID UUID] UUIDString];
+    NSString *fullMachineName = [NSString stringWithFormat:@"%@%@", machineName, uuid];
     
     [self sendRequestWithURL:URL additionalParameters:@{@"csrContent": encodedCSR,
-                                                        @"machineId": [[NSUUID UUID] UUIDString],
-                                                        @"machineName": machineName}
+                                                        @"machineId": uuid,
+                                                        @"machineName": fullMachineName}
                      session:session team:team completionHandler:^(NSDictionary *responseDictionary, NSError *requestError) {
                          if (responseDictionary == nil)
                          {
@@ -265,6 +267,46 @@ NS_ASSUME_NONNULL_END
                          
                          completionHandler(certificate, error);
                      }];
+}
+
+-(void)addCertificateWithEncodedCSR:(NSString *)encodedCSR machineNamePrefix:(NSString *)prefix toTeam:(ALTTeam *)team session:(ALTAppleAPISession *)session completionHandler:(void (^)(ALTCertificate * _Nullable, NSError * _Nullable))completionHandler {
+
+    NSURL *URL = [NSURL URLWithString:@"ios/submitDevelopmentCSR.action" relativeToURL:self.baseURL];
+    NSString *uuid = [[NSUUID UUID] UUIDString];
+    NSString *machineName = [NSString stringWithFormat:@"%@%@", prefix, uuid];
+    
+    [self sendRequestWithURL:URL additionalParameters:@{@"csrContent": encodedCSR,
+                                       @"machineId": uuid,
+                                       @"machineName": machineName}
+    session:session team:team completionHandler:^(NSDictionary *responseDictionary, NSError *requestError) {
+        if (responseDictionary == nil)
+        {
+            completionHandler(nil, requestError);
+            return;
+        }
+        
+        NSError *error = nil;
+        ALTCertificate *certificate = [self processResponse:responseDictionary parseHandler:^id _Nullable{
+            NSDictionary *dictionary = responseDictionary[@"certRequest"];
+            if (dictionary == nil)
+            {
+                return nil;
+            }
+            
+            ALTCertificate *certificate = [[ALTCertificate alloc] initWithResponseDictionary:dictionary];
+            return certificate;
+        } resultCodeHandler:^NSError * _Nullable(NSInteger resultCode) {
+            switch (resultCode)
+            {
+                case 3250:
+                    return [NSError errorWithDomain:ALTAppleAPIErrorDomain code:ALTAppleAPIErrorInvalidCertificateRequest userInfo:nil];
+                    
+                default: return nil;
+            }
+        } error:&error];
+        
+        completionHandler(certificate, error);
+    }];
 }
 
 - (void)revokeCertificate:(ALTCertificate *)certificate forTeam:(ALTTeam *)team session:(ALTAppleAPISession *)session completionHandler:(void (^)(BOOL, NSError * _Nullable))completionHandler
