@@ -518,7 +518,7 @@ NSData *ALTCreateAppTokensChecksum(NSData *sk, NSString *adsid, NSArray<NSString
         
         NSDictionary *tokenDictionary = decryptedTokenDictionary[@"t"][app];
         NSString *token = tokenDictionary[@"token"];
-        NSNumber *expirationDataMS = tokenDictionary[@"expiry"];
+        //NSNumber *expirationDataMS = tokenDictionary[@"expiry"];
         
         if (token == nil)
         {
@@ -526,8 +526,8 @@ NSData *ALTCreateAppTokensChecksum(NSData *sk, NSString *adsid, NSArray<NSString
             return;
         }
         
-        NSDate *expirationDate = [NSDate dateWithTimeIntervalSince1970:(double)expirationDataMS.integerValue / 1000];
-        NSLog(@"Got token for %@!\nExpires: %@\nValue: %@\n", app, expirationDate, token);
+        //NSDate *expirationDate = [NSDate dateWithTimeIntervalSince1970:(double)expirationDataMS.integerValue / 1000];
+        //NSLog(@"Got token for %@!\nExpires: %@\nValue: %@\n", app, expirationDate, token);
         
         completionHandler(token, nil);
     }];
