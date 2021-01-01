@@ -13,6 +13,7 @@
 #endif
 
 #import "ALTCapabilities.h"
+#import "ALTDevice.h"
 
 @class ALTProvisioningProfile;
 
@@ -25,14 +26,17 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, readonly) NSString *version;
 
 #if TARGET_OS_IPHONE
-@property (nonatomic, readonly) UIImage *icon;
+@property (nonatomic, readonly, nullable) UIImage *icon;
 #endif
 
 @property (nonatomic, readonly, nullable) ALTProvisioningProfile *provisioningProfile;
+@property (nonatomic, readonly) NSSet<ALTApplication *> *appExtensions;
 
 @property (nonatomic, readonly) NSOperatingSystemVersion minimumiOSVersion;
+@property (nonatomic, readonly) ALTDeviceType supportedDeviceTypes;
 
 @property (nonatomic, copy, readonly) NSDictionary<ALTEntitlement, id> *entitlements;
+@property (nonatomic, copy, readonly) NSString *entitlementsString;
 
 @property (nonatomic, copy, readonly) NSURL *fileURL;
 

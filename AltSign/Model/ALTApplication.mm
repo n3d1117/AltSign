@@ -11,6 +11,17 @@
 
 #include "alt_ldid.hpp"
 
+ALTDeviceType ALTDeviceTypeFromUIDeviceFamily(NSInteger deviceFamily)
+{
+    switch (deviceFamily)
+    {
+        case 1: return ALTDeviceTypeiPhone;
+        case 2: return ALTDeviceTypeiPad;
+        case 3: return ALTDeviceTypeAppleTV;
+        default: return ALTDeviceTypeNone;
+    }
+}
+
 @interface ALTApplication ()
 
 @property (nonatomic, copy, nullable, readonly) NSString *iconName;
@@ -19,6 +30,7 @@
 
 @implementation ALTApplication
 @synthesize entitlements = _entitlements;
+@synthesize entitlementsString = _entitlementsString;
 @synthesize provisioningProfile = _provisioningProfile;
 
 - (instancetype)initWithFileURL:(NSURL *)fileURL
@@ -63,26 +75,57 @@
         minimumVersion.minorVersion = minorVersion;
         minimumVersion.patchVersion = patchVersion;
         
+        NSArray<NSNumber *> *deviceFamilies = infoDictionary[@"UIDeviceFamily"];
+        ALTDeviceType supportedDeviceTypes = ALTDeviceTypeNone;
+        
+        if ([deviceFamilies isKindOfClass:[NSNumber class]])
+        {
+            NSInteger rawDeviceFamily = [(NSNumber *)deviceFamilies integerValue];
+            supportedDeviceTypes = ALTDeviceTypeFromUIDeviceFamily(rawDeviceFamily);
+        }
+        else if ([deviceFamilies isKindOfClass:[NSArray class]] && deviceFamilies.count > 0)
+        {
+            for (NSNumber *deviceFamily in deviceFamilies)
+            {
+                NSInteger rawDeviceFamily = [deviceFamily integerValue];
+                supportedDeviceTypes |= ALTDeviceTypeFromUIDeviceFamily(rawDeviceFamily);
+            }
+        }
+        else
+        {
+            supportedDeviceTypes = ALTDeviceTypeiPhone;
+        }
+        
         NSDictionary *icons = infoDictionary[@"CFBundleIcons"];
         NSDictionary *primaryIcon = icons[@"CFBundlePrimaryIcon"];
         
-        NSArray *iconFiles = primaryIcon[@"CFBundleIconFiles"];
-        if (iconFiles == nil)
-        {
-            iconFiles = infoDictionary[@"CFBundleIconFiles"];
-        }
+        NSString *iconName = nil;
         
-        NSString *iconName = [iconFiles lastObject];
-        if (iconName == nil)
+        if ([primaryIcon isKindOfClass:[NSString class]])
         {
-            iconName = infoDictionary[@"CFBundleIconFile"];
+            iconName = (NSString *)primaryIcon;
         }
+        else
+        {
+            NSArray *iconFiles = primaryIcon[@"CFBundleIconFiles"];
+            if (iconFiles == nil)
+            {
+                iconFiles = infoDictionary[@"CFBundleIconFiles"];
+            }
+            
+            iconName = [iconFiles lastObject];
+            if (iconName == nil)
+            {
+                iconName = infoDictionary[@"CFBundleIconFile"];
+            }
+        }        
         
         _fileURL = [fileURL copy];
         _name = [name copy];
         _bundleIdentifier = [bundleIdentifier copy];
         _version = [version copy];
         _minimumiOSVersion = minimumVersion;
+        _supportedDeviceTypes = supportedDeviceTypes;
         _iconName = [iconName copy];
     }
     
@@ -115,10 +158,9 @@
     {
         NSDictionary<NSString *, id> *appEntitlements = @{};
         
-        std::string rawEntitlements = ldid::Entitlements(self.fileURL.fileSystemRepresentation);
-        if (rawEntitlements.size() != 0)
+        if (self.entitlementsString.length != 0)
         {
-            NSData *entitlementsData = [NSData dataWithBytes:rawEntitlements.c_str() length:rawEntitlements.size()];
+            NSData *entitlementsData = [self.entitlementsString dataUsingEncoding:NSUTF8StringEncoding];
             
             NSError *error = nil;
             NSDictionary *entitlements = [NSPropertyListSerialization propertyListWithData:entitlementsData options:0 format:nil error:&error];
@@ -139,6 +181,17 @@
     return _entitlements;
 }
 
+- (NSString *)entitlementsString
+{
+    if (_entitlementsString == nil)
+    {
+        std::string rawEntitlements = ldid::Entitlements(self.fileURL.fileSystemRepresentation);
+        _entitlementsString = @(rawEntitlements.c_str());
+    }
+    
+    return _entitlementsString;
+}
+
 - (ALTProvisioningProfile *)provisioningProfile
 {
     if (_provisioningProfile == nil)
@@ -148,6 +201,32 @@
     }
     
     return _provisioningProfile;
+}
+
+- (NSSet<ALTApplication *> *)appExtensions
+{
+    NSBundle *bundle = [NSBundle bundleWithURL:self.fileURL];
+    
+    NSMutableSet *appExtensions = [NSMutableSet set];
+    
+    NSDirectoryEnumerator *enumerator = [[NSFileManager defaultManager] enumeratorAtURL:bundle.builtInPlugInsURL includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsSubdirectoryDescendants errorHandler:nil];
+    for (NSURL *fileURL in enumerator)
+    {
+        if (![fileURL.pathExtension.lowercaseString isEqualToString:@"appex"])
+        {
+            continue;
+        }
+        
+        ALTApplication *appExtension = [[ALTApplication alloc] initWithFileURL:fileURL];
+        if (appExtension == nil)
+        {
+            continue;
+        }
+        
+        [appExtensions addObject:appExtension];
+    }
+    
+    return appExtensions;
 }
 
 @end
